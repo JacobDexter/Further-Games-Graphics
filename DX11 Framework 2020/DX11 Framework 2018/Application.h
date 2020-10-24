@@ -6,7 +6,7 @@
 #include <directxmath.h>
 #include <directxcolors.h>
 #include "resource.h"
-
+#include <vector>
 using namespace DirectX;
 
 struct SimpleVertex
@@ -36,8 +36,10 @@ private:
 	ID3D11VertexShader*     _pVertexShader;
 	ID3D11PixelShader*      _pPixelShader;
 	ID3D11InputLayout*      _pVertexLayout;
-	ID3D11Buffer*           _pVertexBuffer;
-	ID3D11Buffer*           _pIndexBuffer;
+	ID3D11Buffer*			_pyramidVertexBuffer;
+	ID3D11Buffer*			_cubeVertexBuffer;
+	ID3D11Buffer*			_pyramidIndexBuffer;
+	ID3D11Buffer*			_cubeIndexBuffer;
 	ID3D11Buffer*           _pConstantBuffer;
 	XMFLOAT4X4              _world, _world2;
 	XMFLOAT4X4              _view;
