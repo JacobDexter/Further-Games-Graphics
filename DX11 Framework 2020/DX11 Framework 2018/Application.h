@@ -36,8 +36,9 @@ private:
 	ID3D11VertexShader*     _pVertexShader;
 	ID3D11PixelShader*      _pPixelShader;
 	ID3D11InputLayout*      _pVertexLayout;
-	ID3D11Buffer*			_pyramidVertexBuffer;
-	ID3D11Buffer*			_cubeVertexBuffer;
+	//ID3D11Buffer*			_pyramidVertexBuffer;
+	//ID3D11Buffer*			_cubeVertexBuffer;
+	ID3D11Buffer*			_VertexBuffers [2];
 	ID3D11Buffer*			_pyramidIndexBuffer;
 	ID3D11Buffer*			_cubeIndexBuffer;
 	ID3D11Buffer*           _pConstantBuffer;
