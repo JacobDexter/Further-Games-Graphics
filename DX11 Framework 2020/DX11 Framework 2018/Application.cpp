@@ -118,6 +118,7 @@ HRESULT Application::InitShadersAndInputLayout()
 
 	// Create the pixel shader
 	hr = _pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &_pPixelShader);
+
 	pPSBlob->Release();
 
     if (FAILED(hr))
@@ -133,8 +134,8 @@ HRESULT Application::InitShadersAndInputLayout()
 	UINT numElements = ARRAYSIZE(layout);
 
     // Create the input layout
-	hr = _pd3dDevice->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(),
-                                        pVSBlob->GetBufferSize(), &_pVertexLayout);
+	hr = _pd3dDevice->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &_pVertexLayout);
+
 	pVSBlob->Release();
 
 	if (FAILED(hr))
@@ -393,8 +394,8 @@ HRESULT Application::InitDevice()
     for (UINT driverTypeIndex = 0; driverTypeIndex < numDriverTypes; driverTypeIndex++)
     {
         _driverType = driverTypes[driverTypeIndex];
-        hr = D3D11CreateDeviceAndSwapChain(nullptr, _driverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels,
-                                           D3D11_SDK_VERSION, &sd, &_pSwapChain, &_pd3dDevice, &_featureLevel, &_pImmediateContext);
+        hr = D3D11CreateDeviceAndSwapChain(nullptr, _driverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels, D3D11_SDK_VERSION, &sd, &_pSwapChain, &_pd3dDevice, &_featureLevel, &_pImmediateContext);
+        
         if (SUCCEEDED(hr))
             break;
     }
@@ -532,6 +533,10 @@ void Application::Update()
     {
         rasterizerState = !rasterizerState;
     }
+    //
+    // Pass time through to shaders
+    //
+    cb.t = t;
 
     //
     // Animate the cube
@@ -566,7 +571,6 @@ void Application::Draw()
     //
     // Update variables
     //
-    ConstantBuffer cb;
 	cb.mWorld = XMMatrixTranspose(world);
 	cb.mView = XMMatrixTranspose(view);
 	cb.mProjection = XMMatrixTranspose(projection);

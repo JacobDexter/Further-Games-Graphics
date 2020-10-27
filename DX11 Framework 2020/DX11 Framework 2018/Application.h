@@ -20,6 +20,7 @@ struct ConstantBuffer
 	XMMATRIX mWorld;
 	XMMATRIX mView;
 	XMMATRIX mProjection;
+	float t;
 };
 
 class Application
@@ -36,8 +37,6 @@ private:
 	ID3D11VertexShader*     _pVertexShader;
 	ID3D11PixelShader*      _pPixelShader;
 	ID3D11InputLayout*      _pVertexLayout;
-	//ID3D11Buffer*			_pyramidVertexBuffer;
-	//ID3D11Buffer*			_cubeVertexBuffer;
 	ID3D11Buffer*			_VertexBuffers [2];
 	ID3D11Buffer*			_pyramidIndexBuffer;
 	ID3D11Buffer*			_cubeIndexBuffer;
@@ -49,6 +48,7 @@ private:
 	ID3D11Texture2D* _depthStencilBuffer;
 	ID3D11RasterizerState* _wireFrame;
 	ID3D11RasterizerState* _solidRaster;
+	ConstantBuffer cb;
 
 private:
 	HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow);
