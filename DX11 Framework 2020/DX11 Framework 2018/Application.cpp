@@ -39,6 +39,15 @@ Application::Application()
 	_pConstantBuffer = nullptr;
     _pyramidIndexBuffer = nullptr;
     _cubeIndexBuffer = nullptr;
+
+    lightDirection = XMFLOAT3(0.25f, 0.5f, -1.0f);
+    diffuseMaterial = XMFLOAT4(0.8f, 0.5f, 0.5f, 1.0f);
+    diffuseLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+    AmbientMtrl = XMFLOAT4(0.2f, 0.2f, 0.2f, 0.2f);
+    AmbientLight = XMFLOAT4(0.2f, 0.2f, 0.2f, 0.2f);
+    SpecularMtrl = XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
+    SpecularLight = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+    SpecularPower = 10.0f;
 }
 
 Application::~Application()
@@ -74,7 +83,7 @@ HRESULT Application::Initialise(HINSTANCE hInstance, int nCmdShow)
 	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
 	XMStoreFloat4x4(&_view, XMMatrixLookAtLH(Eye, At, Up));
-
+    
     // Initialize the projection matrix
 	XMStoreFloat4x4(&_projection, XMMatrixPerspectiveFovLH(XM_PIDIV2, _WindowWidth / (FLOAT) _WindowHeight, 0.01f, 100.0f));
 
@@ -95,7 +104,7 @@ HRESULT Application::InitShadersAndInputLayout()
                    L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
         return hr;
     }
-
+    
 	// Create the vertex shader
 	hr = _pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &_pVertexShader);
 
@@ -128,7 +137,7 @@ HRESULT Application::InitShadersAndInputLayout()
     D3D11_INPUT_ELEMENT_DESC layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 
 	UINT numElements = ARRAYSIZE(layout);
@@ -154,26 +163,26 @@ HRESULT Application::InitVertexBuffer()
     // Create vertex buffer
     SimpleVertex cubeVertices[] =
     {
-        { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) },
-        { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 0.0f, 1.0f, 1.0f ) },
-        { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 0.0f, 1.0f, 0.0f, 1.0f ) },
-        { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) },
-        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, -1.0f, 1.0f) },
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, -1.0f, 1.0f) },
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, -1.0f, -1.0f) },
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 1.0f, -1.0f) },
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, -1.0f) },
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, -1.0f, -1.0f) },
     };
 
     SimpleVertex pyramidVertices[] =
     {
         //base
-        { XMFLOAT3(-1.0f, 0.0f, 1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, 0.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 0.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, 0.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, 0.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(1.0f, 0.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
 
         //top
-        { XMFLOAT3(0.0f, 3.0f, 0.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(0.0f, 3.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
     };
 
     //cube
@@ -575,6 +584,22 @@ void Application::Draw()
 	cb.mView = XMMatrixTranspose(view);
 	cb.mProjection = XMMatrixTranspose(projection);
 
+    //lighting
+    cb.LightVecW = lightDirection;
+
+    cb.DiffuseLight = diffuseLight;
+    cb.DiffuseMtrl = diffuseMaterial;
+
+    cb.AmbientMtrl = AmbientMtrl;
+    cb.AmbientLight = AmbientMtrl;
+
+    cb.SpecularMtrl = SpecularMtrl;
+    cb.SpecularLight = SpecularLight;
+    cb.SpecularPower = SpecularPower;
+
+    //camera
+    cb.EyePosW = XMFLOAT3(0.0f, 0.0f, -3.0f);
+
 	_pImmediateContext->UpdateSubresource(_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
     ////// Set vertex and index buffers //////
@@ -611,3 +636,19 @@ void Application::Draw()
     //
     _pSwapChain->Present(0, 0);
 }
+
+//HRESULT Application::CalculateNormals(int triCount, SimpleVertex vertexBuffer[], WORD indexBuffer[])
+//{
+//    int vertexNumber = 0;
+//
+//    for (int i = 0; i < triCount; i++)
+//    {
+//        XMVECTOR v1 = XMLoadFloat3(&XMFLOAT3(vertexBuffer[indexBuffer[vertexNumber]].Pos.x, vertexBuffer[indexBuffer[vertexNumber]].Pos.y, vertexBuffer[indexBuffer[vertexNumber]].Pos.z));
+//        XMVECTOR v2 = XMLoadFloat3(&XMFLOAT3(vertexBuffer[indexBuffer[vertexNumber + 1]].Pos.x, vertexBuffer[indexBuffer[vertexNumber + 1]].Pos.y, vertexBuffer[indexBuffer[vertexNumber + 1]].Pos.z));
+//        XMVECTOR v3 = XMLoadFloat3(&XMFLOAT3(vertexBuffer[indexBuffer[vertexNumber + 2]].Pos.x, vertexBuffer[indexBuffer[vertexNumber + 2]].Pos.y, vertexBuffer[indexBuffer[vertexNumber + 2]].Pos.z));
+//        XMVECTOR n = XMVector3Cross(XMVectorSubtract(v2, v1), XMVectorSubtract(v3, v1));
+//        vertexNumber += 3;
+//    }
+//
+//    return S_OK;
+//}
