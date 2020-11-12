@@ -7,19 +7,19 @@
 #include <directxcolors.h>
 #include "resource.h"
 #include <vector>
+#include "DDSTextureLoader.h"
+
 using namespace DirectX;
 
 struct SimpleVertex
 {
     XMFLOAT3 Pos;
     XMFLOAT3 Normal;
+	XMFLOAT2 TexCoords;
 };
 
 struct ConstantBuffer
 {
-	//update var
-	float t;
-
 	//view matrixs
 	XMMATRIX mWorld;
 	XMMATRIX mView;
@@ -29,6 +29,9 @@ struct ConstantBuffer
 	XMFLOAT4 DiffuseMtrl;
 	XMFLOAT4 DiffuseLight;
 	XMFLOAT3 LightVecW; //light pos
+
+	//update var
+	float t;
 
 	//ambient
 	XMFLOAT4 AmbientMtrl;
@@ -80,13 +83,17 @@ private:
 
 	//lighting
 	XMFLOAT3 lightDirection;
-	XMFLOAT4 diffuseMaterial;
+	XMFLOAT4 diffuseMtrl;
 	XMFLOAT4 diffuseLight;
 	XMFLOAT4 AmbientMtrl;
 	XMFLOAT4 AmbientLight;
 	XMFLOAT4 SpecularMtrl;
 	XMFLOAT4 SpecularLight;
 	float SpecularPower;
+
+	//texture
+	ID3D11ShaderResourceView* _pTextureRV;
+	ID3D11SamplerState* _pSamplerLinear;
 
 private:
 	HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow);

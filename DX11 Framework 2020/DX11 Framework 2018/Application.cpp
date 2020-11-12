@@ -40,8 +40,13 @@ Application::Application()
     _pyramidIndexBuffer = nullptr;
     _cubeIndexBuffer = nullptr;
 
+    //texture
+    _pTextureRV = nullptr;
+    _pSamplerLinear = nullptr;
+
+    //lighting
     lightDirection = XMFLOAT3(0.25f, 0.5f, -1.0f);
-    diffuseMaterial = XMFLOAT4(0.8f, 0.5f, 0.5f, 1.0f);
+    diffuseMtrl = XMFLOAT4(0.8f, 0.5f, 0.5f, 1.0f);
     diffuseLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
     AmbientMtrl = XMFLOAT4(0.2f, 0.2f, 0.2f, 0.2f);
     AmbientLight = XMFLOAT4(0.2f, 0.2f, 0.2f, 0.2f);
@@ -138,6 +143,7 @@ HRESULT Application::InitShadersAndInputLayout()
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 
 	UINT numElements = ARRAYSIZE(layout);
@@ -153,6 +159,33 @@ HRESULT Application::InitShadersAndInputLayout()
     // Set the input layout
     _pImmediateContext->IASetInputLayout(_pVertexLayout);
 
+    //create texture
+    hr = CreateDDSTextureFromFile(_pd3dDevice, L"Crate_COLOR.dds", nullptr, &_pTextureRV);
+
+    if (FAILED(hr))
+        return hr;
+
+    //load texture into shader resource
+    _pImmediateContext->PSSetShaderResources(0, 1, &_pTextureRV);
+
+    //defining the texture sampler state
+    D3D11_SAMPLER_DESC sampDesc;
+    ZeroMemory(&sampDesc, sizeof(sampDesc));
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    sampDesc.MinLOD = 0;
+    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+    hr = _pd3dDevice->CreateSamplerState(&sampDesc, &_pSamplerLinear);
+
+    if (FAILED(hr))
+        return hr;
+
+    _pImmediateContext->PSSetSamplers(0, 1, &_pSamplerLinear); //set sampler
+
 	return hr;
 }
 
@@ -163,26 +196,62 @@ HRESULT Application::InitVertexBuffer()
     // Create vertex buffer
     SimpleVertex cubeVertices[] =
     {
-        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, -1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, -1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, -1.0f, -1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 1.0f, -1.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, -1.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, -1.0f, -1.0f) },
+        //front face
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) }, //bottom front left 
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) }, //bottom front right 
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) }, //top front right 
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) }, //top front left 
+
+        //right face
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) }, //bottom front right
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 0.0f) }, //bottom back right
+        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f) }, //top back right
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) }, //top front right
+
+        //top face
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) }, //top front left
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) }, //top front right
+        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f) }, //top back right
+        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) }, //top back left
+
+        //left face
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 0.0f) }, //bottom back left
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) }, //bottom front left
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) }, //top front left
+        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) }, //top back left
+
+        //bottom face
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 0.0f) }, //bottom back left
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 0.0f) }, //bottom back right
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) }, //bottom front right
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) }, //bottom front left
+
+        //back face
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 0.0f) }, //bottom back right
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 0.0f) }, //bottom back left
+        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f) }, //top back left
+        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) }, //top back right
+
+        //{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.75f, 0.33f) }, //top back right
+        //{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(0.75f, 0.66f) }, //top back left
+        //{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.5f, 0.66f) }, //bottom back left
+        //{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.5f, 0.33f) }, //bottom back right
+        //{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(0.25f, 0.33f) }, //bottom front right
+        //{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.33f) }, //top front right
+        //{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.66f) }, //top front left
+        //{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.25f, 0.66f) }, //bottom front left
     };
 
     SimpleVertex pyramidVertices[] =
     {
         //base
-        { XMFLOAT3(-1.0f, 0.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, 0.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 0.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, 0.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(1.0f, 0.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, 0.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, -1.0f) },
+        { XMFLOAT3(1.0f, 0.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, -1.0f) },
 
         //top
-        { XMFLOAT3(0.0f, 3.0f, 0.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(0.0f, 3.0f, 0.0f), XMFLOAT3(0.0f, 3.0f, 0.0f) },
     };
 
     //cube
@@ -203,7 +272,7 @@ HRESULT Application::InitVertexBuffer()
         return hr;
 
     //pyramid
-    D3D11_BUFFER_DESC pbd;
+    /*D3D11_BUFFER_DESC pbd;
     ZeroMemory(&pbd, sizeof(pbd));
     pbd.Usage = D3D11_USAGE_DEFAULT;
     pbd.ByteWidth = sizeof(pyramidVertices);
@@ -214,7 +283,7 @@ HRESULT Application::InitVertexBuffer()
     ZeroMemory(&pyramidInitData, sizeof(pyramidInitData));
     pyramidInitData.pSysMem = pyramidVertices;
 
-    hr = _pd3dDevice->CreateBuffer(&pbd, &pyramidInitData, &_VertexBuffers[1]);
+    hr = _pd3dDevice->CreateBuffer(&pbd, &pyramidInitData, &_VertexBuffers[1]);*/
 
     if (FAILED(hr))
         return hr;
@@ -229,7 +298,26 @@ HRESULT Application::InitIndexBuffer()
     // Create index buffer
     WORD cubeIndices[] =
     {
+        //front
         0, 1, 2,
+        2, 3, 0,
+        //right
+        4, 5, 6,
+        6, 7, 4,
+        //top
+        8, 9, 10,
+        10, 11, 8,
+        //left
+        12, 13, 14,
+        14, 15, 12,
+        //bottom
+        16, 17, 18,
+        18, 19, 16,
+        //back
+        20, 21, 22,
+        22, 23, 20
+
+        /*0, 1, 2,
         2, 3, 0,
         0, 3, 4,
         4, 5, 0,
@@ -240,7 +328,7 @@ HRESULT Application::InitIndexBuffer()
         7, 4, 3,
         3, 2, 7,
         4, 7, 6,
-        6, 5, 4
+        6, 5, 4*/
     };
 
     WORD pyramidIndices[] =
@@ -273,7 +361,7 @@ HRESULT Application::InitIndexBuffer()
 
     //pyramid indices
 
-    D3D11_BUFFER_DESC pbd;
+    /*D3D11_BUFFER_DESC pbd;
     ZeroMemory(&pbd, sizeof(pbd));
 
     pbd.Usage = D3D11_USAGE_DEFAULT;
@@ -284,7 +372,7 @@ HRESULT Application::InitIndexBuffer()
     D3D11_SUBRESOURCE_DATA pyramidInitData;
     ZeroMemory(&pyramidInitData, sizeof(pyramidInitData));
     pyramidInitData.pSysMem = pyramidIndices;
-    hr = _pd3dDevice->CreateBuffer(&pbd, &pyramidInitData, &_pyramidIndexBuffer);
+    hr = _pd3dDevice->CreateBuffer(&pbd, &pyramidInitData, &_pyramidIndexBuffer);*/
 
     if (FAILED(hr))
         return hr;
@@ -465,7 +553,7 @@ HRESULT Application::InitDevice()
 	InitIndexBuffer();
 
     // Set index buffer
-    _pImmediateContext->IASetIndexBuffer(_pyramidIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+    _pImmediateContext->IASetIndexBuffer(_cubeIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     // Set primitive topology
     _pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -490,6 +578,7 @@ HRESULT Application::InitDevice()
     ZeroMemory(&srdesc, sizeof(D3D11_RASTERIZER_DESC));
     srdesc.FillMode = D3D11_FILL_SOLID;
     srdesc.CullMode = D3D11_CULL_BACK;
+    srdesc.FrontCounterClockwise = true; //remove when cube no longer needed
     hr = _pd3dDevice->CreateRasterizerState(&srdesc, &_solidRaster);
 
 
@@ -503,7 +592,7 @@ void Application::Cleanup()
 {
     if (_pImmediateContext) _pImmediateContext->ClearState();
     if (_VertexBuffers[0]) _VertexBuffers[0]->Release();
-    if (_VertexBuffers[1]) _VertexBuffers[1]->Release();
+    //if (_VertexBuffers[1]) _VertexBuffers[1]->Release();
     if (_pConstantBuffer) _pConstantBuffer->Release();
     if (_pVertexLayout) _pVertexLayout->Release();
     if (_pVertexShader) _pVertexShader->Release();
@@ -550,9 +639,10 @@ void Application::Update()
     //
     // Animate the cube
     //
-	XMStoreFloat4x4(&_world, XMMatrixRotationY(t) * XMMatrixTranslation(-2.0f, 0.0f, 0.0f));
+	//XMStoreFloat4x4(&_world, XMMatrixRotationY(t) * XMMatrixTranslation(-2.0f, 0.0f, 0.0f));
 
-    XMStoreFloat4x4(&_world2, XMMatrixRotationY(t) * XMMatrixTranslation(2.0f, 0.0f, 0.0f));
+    //spin
+    XMStoreFloat4x4(&_world2, XMMatrixRotationY(t * 0.5f) * XMMatrixTranslation(0.0f, 0.0f, 1.0f));
 }
 
 void Application::Draw()
@@ -588,10 +678,10 @@ void Application::Draw()
     cb.LightVecW = lightDirection;
 
     cb.DiffuseLight = diffuseLight;
-    cb.DiffuseMtrl = diffuseMaterial;
+    cb.DiffuseMtrl = diffuseMtrl;
 
     cb.AmbientMtrl = AmbientMtrl;
-    cb.AmbientLight = AmbientMtrl;
+    cb.AmbientLight = AmbientLight;
 
     cb.SpecularMtrl = SpecularMtrl;
     cb.SpecularLight = SpecularLight;
@@ -605,18 +695,19 @@ void Application::Draw()
     ////// Set vertex and index buffers //////
     UINT stride = sizeof(SimpleVertex);
     UINT offset = 0;
-    _pImmediateContext->IASetVertexBuffers(0, 1, &_VertexBuffers[1], &stride, &offset);
-    _pImmediateContext->IASetIndexBuffer(_pyramidIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     //
     // Renders a triangle
     //
+    //_pImmediateContext->IASetVertexBuffers(0, 1, &_VertexBuffers[0], &stride, &offset);
+    //_pImmediateContext->IASetIndexBuffer(_pyramidIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
 	_pImmediateContext->VSSetShader(_pVertexShader, nullptr, 0);
 	_pImmediateContext->VSSetConstantBuffers(0, 1, &_pConstantBuffer);
     _pImmediateContext->PSSetConstantBuffers(0, 1, &_pConstantBuffer);
 	_pImmediateContext->PSSetShader(_pPixelShader, nullptr, 0);
 
-    _pImmediateContext->DrawIndexed(18, 0, 0);
+    //_pImmediateContext->DrawIndexed(18, 0, 0);
 
     //Renders a cube
 
