@@ -92,6 +92,12 @@ HRESULT Application::Initialise(HINSTANCE hInstance, int nCmdShow)
     // Initialize the projection matrix
 	XMStoreFloat4x4(&_projection, XMMatrixPerspectiveFovLH(XM_PIDIV2, _WindowWidth / (FLOAT) _WindowHeight, 0.01f, 100.0f));
 
+    //Initialise Mesh Data
+    carMeshData = OBJLoader::Load("objects/car.obj", _pd3dDevice);
+
+    //Initialise Objects
+    car = new GameObject(&carMeshData, _pImmediateContext, _pConstantBuffer, &cb);
+
 	return S_OK;
 }
 
@@ -160,7 +166,7 @@ HRESULT Application::InitShadersAndInputLayout()
     _pImmediateContext->IASetInputLayout(_pVertexLayout);
 
     //create texture
-    hr = CreateDDSTextureFromFile(_pd3dDevice, L"Crate_COLOR.dds", nullptr, &_pTextureRV);
+    hr = CreateDDSTextureFromFile(_pd3dDevice, L"Textures/Crate_COLOR.dds", nullptr, &_pTextureRV);
 
     if (FAILED(hr))
         return hr;
@@ -231,15 +237,6 @@ HRESULT Application::InitVertexBuffer()
         { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 0.0f) }, //bottom back left
         { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f) }, //top back left
         { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) }, //top back right
-
-        //{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.75f, 0.33f) }, //top back right
-        //{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(0.75f, 0.66f) }, //top back left
-        //{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.5f, 0.66f) }, //bottom back left
-        //{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.5f, 0.33f) }, //bottom back right
-        //{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(0.25f, 0.33f) }, //bottom front right
-        //{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.33f) }, //top front right
-        //{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.66f) }, //top front left
-        //{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.25f, 0.66f) }, //bottom front left
     };
 
     SimpleVertex pyramidVertices[] =
@@ -316,19 +313,6 @@ HRESULT Application::InitIndexBuffer()
         //back
         20, 21, 22,
         22, 23, 20
-
-        /*0, 1, 2,
-        2, 3, 0,
-        0, 3, 4,
-        4, 5, 0,
-        0, 5, 6,
-        6, 1, 0,
-        1, 6, 7,
-        7, 2, 1,
-        7, 4, 3,
-        3, 2, 7,
-        4, 7, 6,
-        6, 5, 4*/
     };
 
     WORD pyramidIndices[] =
@@ -401,9 +385,9 @@ HRESULT Application::InitWindow(HINSTANCE hInstance, int nCmdShow)
 
     // Create window
     _hInst = hInstance;
-    RECT rc = {0, 0, 640, 480};
+    RECT rc = {0, 0, screenWidth, screenHeight};
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
-    _hWnd = CreateWindow(L"TutorialWindowClass", L"DX11 Framework", WS_OVERLAPPEDWINDOW,
+    _hWnd = CreateWindow(L"TutorialWindowClass", L"Jacob Dexter | DirectX | Assignment 1", WS_OVERLAPPEDWINDOW,
                          CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance,
                          nullptr);
     if (!_hWnd)
@@ -639,10 +623,11 @@ void Application::Update()
     //
     // Animate the cube
     //
-	//XMStoreFloat4x4(&_world, XMMatrixRotationY(t) * XMMatrixTranslation(-2.0f, 0.0f, 0.0f));
+	XMStoreFloat4x4(&_world, XMMatrixTranslation(0.0f, 0.0f, 150.0f));
 
     //spin
     XMStoreFloat4x4(&_world2, XMMatrixRotationY(t * 0.5f) * XMMatrixTranslation(0.0f, 0.0f, 1.0f));
+    car->Update(t);
 }
 
 void Application::Draw()
@@ -696,18 +681,10 @@ void Application::Draw()
     UINT stride = sizeof(SimpleVertex);
     UINT offset = 0;
 
-    //
-    // Renders a triangle
-    //
-    //_pImmediateContext->IASetVertexBuffers(0, 1, &_VertexBuffers[0], &stride, &offset);
-    //_pImmediateContext->IASetIndexBuffer(_pyramidIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
-
 	_pImmediateContext->VSSetShader(_pVertexShader, nullptr, 0);
 	_pImmediateContext->VSSetConstantBuffers(0, 1, &_pConstantBuffer);
     _pImmediateContext->PSSetConstantBuffers(0, 1, &_pConstantBuffer);
 	_pImmediateContext->PSSetShader(_pPixelShader, nullptr, 0);
-
-    //_pImmediateContext->DrawIndexed(18, 0, 0);
 
     //Renders a cube
 
@@ -720,7 +697,19 @@ void Application::Draw()
     _pImmediateContext->IASetVertexBuffers(0, 1, &_VertexBuffers[0], &stride, &offset);
     _pImmediateContext->IASetIndexBuffer(_cubeIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
-	_pImmediateContext->DrawIndexed(36, 0, 0);        
+	_pImmediateContext->DrawIndexed(36, 0, 0); 
+
+    //draw car
+    /*world = XMLoadFloat4x4(&_world);
+    cb.mWorld = XMMatrixTranspose(world);
+
+    _pImmediateContext->UpdateSubresource(_pConstantBuffer, 0, nullptr, &cb, 0, 0);
+
+    _pImmediateContext->IASetVertexBuffers(0, 1, &objMeshData.VertexBuffer, &objMeshData.VBStride, &objMeshData.VBOffset);
+    _pImmediateContext->IASetIndexBuffer(objMeshData.IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
+    _pImmediateContext->DrawIndexed(objMeshData.IndexCount, 0, 0);*/
+    car->Draw();
 
     //
     // Present our back buffer to our front buffer

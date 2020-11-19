@@ -8,43 +8,12 @@
 #include "resource.h"
 #include <vector>
 #include "DDSTextureLoader.h"
+#include "OBJLoader.h"
+#include "Structures.h"
+#include "Constants.h"
+#include "GameObject.h"
 
 using namespace DirectX;
-
-struct SimpleVertex
-{
-    XMFLOAT3 Pos;
-    XMFLOAT3 Normal;
-	XMFLOAT2 TexCoords;
-};
-
-struct ConstantBuffer
-{
-	//view matrixs
-	XMMATRIX mWorld;
-	XMMATRIX mView;
-	XMMATRIX mProjection;
-
-	//diffuse
-	XMFLOAT4 DiffuseMtrl;
-	XMFLOAT4 DiffuseLight;
-	XMFLOAT3 LightVecW; //light pos
-
-	//update var
-	float t;
-
-	//ambient
-	XMFLOAT4 AmbientMtrl;
-	XMFLOAT4 AmbientLight;
-
-	//specular
-	XMFLOAT4 SpecularMtrl;
-	XMFLOAT4 SpecularLight;
-	float SpecularPower;
-
-	//camera
-	XMFLOAT3 EyePosW;
-};
 
 class Application
 {
@@ -94,6 +63,10 @@ private:
 	//texture
 	ID3D11ShaderResourceView* _pTextureRV;
 	ID3D11SamplerState* _pSamplerLinear;
+
+	//Mesh Data
+	MeshData carMeshData;
+	GameObject* car;
 
 private:
 	HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow);

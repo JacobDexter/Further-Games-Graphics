@@ -12,6 +12,9 @@
     <Filter Include="TextureLoader">
       <UniqueIdentifier>{9fde7908-0825-465c-879d-a37720cdbdda}</UniqueIdentifier>
     </Filter>
+    <Filter Include="OBJ Loader">
+      <UniqueIdentifier>{2891da81-b8a7-4c59-bdd1-98bea92e3283}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -20,6 +23,13 @@
     <ClInclude Include="DDSTextureLoader.h">
       <Filter>TextureLoader</Filter>
     </ClInclude>
+    <ClInclude Include="OBJLoader.h">
+      <Filter>OBJ Loader</Filter>
+    </ClInclude>
+    <ClInclude Include="Structures.h" />
+    <ClInclude Include="Constants.h" />
+    <ClInclude Include="GameObject.h" />
+    <ClInclude Include="Camera.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
@@ -29,6 +39,11 @@
     <ClCompile Include="DDSTextureLoader.cpp">
       <Filter>TextureLoader</Filter>
     </ClCompile>
+    <ClCompile Include="OBJLoader.cpp">
+      <Filter>OBJ Loader</Filter>
+    </ClCompile>
+    <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="Camera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CLInclude Include="resource.h">
