@@ -17,5 +17,4 @@ public:
 	ID3D11Buffer* _pConstantBuffer;
 	ConstantBuffer* _cb;
 	XMFLOAT4X4 worldPosition;
-	XMMATRIX world;
 };

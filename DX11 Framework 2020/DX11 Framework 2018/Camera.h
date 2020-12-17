@@ -17,14 +17,17 @@ private:
 	FLOAT _windowWidth;
 	FLOAT _nearDepth;
 	FLOAT _farDepth;
+	FLOAT _yAngle;
 
 	XMFLOAT4X4 _view;
 	XMFLOAT4X4 _projection;
+
+	void Input();
 public:
-	Camera(XMFLOAT3 position, XMFLOAT3 at, XMFLOAT3 up, FLOAT windowHeight, FLOAT windowWidth, FLOAT nearDepth, FLOAT farDepth);
+	Camera(XMFLOAT3 position, XMFLOAT3 at, XMFLOAT3 up, FLOAT windowHeight, FLOAT windowWidth, FLOAT nearDepth, FLOAT farDepth, FLOAT angle);
 	~Camera();
 
-	void Update();
+	void Update(float t);
 
 	XMFLOAT3 GetPosition();
 	XMVECTOR GetPositionXM();

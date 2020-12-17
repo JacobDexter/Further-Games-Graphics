@@ -12,6 +12,7 @@
 #include "Structures.h"
 #include "Constants.h"
 #include "GameObject.h"
+#include "Camera.h"
 
 using namespace DirectX;
 
@@ -30,6 +31,7 @@ private:
 	ID3D11RenderTargetView* _pRenderTargetView;
 	ID3D11VertexShader*     _pVertexShader;
 	ID3D11PixelShader*      _pPixelShader;
+	ID3D11PixelShader*      _pNoTexPixelShader;
 	ID3D11InputLayout*      _pVertexLayout;
 	ID3D11DepthStencilView* _depthStencilView;
 	ID3D11Texture2D* _depthStencilBuffer;
@@ -37,6 +39,7 @@ private:
 	//rasterizer
 	ID3D11RasterizerState* _wireFrame;
 	ID3D11RasterizerState* _solidRaster;
+	ID3D11RasterizerState* _noCulling;
 
 	//view matrixs
 	XMFLOAT4X4 _world, _world2;
@@ -65,8 +68,11 @@ private:
 	ID3D11SamplerState* _pSamplerLinear;
 
 	//Mesh Data
-	MeshData carMeshData;
-	GameObject* car;
+	std::vector<MeshData> _meshData;
+
+	//cameras
+	std::vector <Camera*> camera;
+	int selectedCamera;
 
 private:
 	HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow);
@@ -76,7 +82,6 @@ private:
 	HRESULT InitShadersAndInputLayout();
 	HRESULT InitVertexBuffer();
 	HRESULT InitIndexBuffer();
-	//HRESULT CalculateNormals(int triCount, SimpleVertex vertexBuffer[], WORD indexBuffer[]);
 
 	UINT _WindowHeight;
 	UINT _WindowWidth;
@@ -90,6 +95,7 @@ public:
 	HRESULT Initialise(HINSTANCE hInstance, int nCmdShow);
 
 	void Update();
+	void Input();
 	void Draw();
 };
 

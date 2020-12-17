@@ -1,6 +1,6 @@
 #include "Camera.h"
 
-Camera::Camera(XMFLOAT3 position, XMFLOAT3 at, XMFLOAT3 up, FLOAT windowHeight, FLOAT windowWidth, FLOAT nearDepth, FLOAT farDepth)
+Camera::Camera(XMFLOAT3 position, XMFLOAT3 at, XMFLOAT3 up, FLOAT windowHeight, FLOAT windowWidth, FLOAT nearDepth, FLOAT farDepth, FLOAT angle)
 {
 	_eye = position;
 	_at = at;
@@ -10,11 +10,12 @@ Camera::Camera(XMFLOAT3 position, XMFLOAT3 at, XMFLOAT3 up, FLOAT windowHeight, 
 	_windowWidth = windowWidth;
 	_nearDepth = nearDepth;
 	_farDepth = farDepth;
+	_yAngle = angle;
 
 	// Initialize the view matrix
-	XMStoreFloat4x4(&_view, XMMatrixLookAtLH(GetPositionXM(), GetLookAtXM(), GetUpXM()));
+	XMStoreFloat4x4(&_view, XMMatrixLookAtLH(GetPositionXM(), GetLookAtXM(), GetUpXM()) * XMMatrixRotationY(_yAngle));
 	// Initialize the projection matrix
-	XMStoreFloat4x4(&_projection, XMMatrixPerspectiveFovLH(XM_PIDIV2, _windowWidth / _windowHeight, 0.01f, 100.0f));
+	XMStoreFloat4x4(&_projection, XMMatrixPerspectiveFovLH(XM_PIDIV2, _windowWidth / _windowHeight, _nearDepth, _farDepth));
 }
 
 Camera::~Camera()
@@ -22,9 +23,10 @@ Camera::~Camera()
 
 }
 
-void Camera::Update()
+void Camera::Update(float t)
 {
-
+	XMStoreFloat4x4(&_view, XMMatrixLookAtLH(GetPositionXM(), GetLookAtXM(), GetUpXM()));
+	XMStoreFloat4x4(&_projection, XMMatrixPerspectiveFovLH(XM_PIDIV2, _windowWidth / _windowHeight, _nearDepth, _farDepth));
 }
 
 ///////////////////////

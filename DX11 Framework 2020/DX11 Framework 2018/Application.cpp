@@ -39,6 +39,7 @@ Application::Application()
 	_pConstantBuffer = nullptr;
     _pyramidIndexBuffer = nullptr;
     _cubeIndexBuffer = nullptr;
+    selectedCamera = 0;
 
     //texture
     _pTextureRV = nullptr;
@@ -79,24 +80,16 @@ HRESULT Application::Initialise(HINSTANCE hInstance, int nCmdShow)
         return E_FAIL;
     }
 
-	// Initialize the world matrix
-	XMStoreFloat4x4(&_world, XMMatrixIdentity());
-
-    // Initialize the view matrix
-	XMVECTOR Eye = XMVectorSet(0.0f, 0.0f, -3.0f, 0.0f);
-	XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-	XMStoreFloat4x4(&_view, XMMatrixLookAtLH(Eye, At, Up));
-    
-    // Initialize the projection matrix
-	XMStoreFloat4x4(&_projection, XMMatrixPerspectiveFovLH(XM_PIDIV2, _WindowWidth / (FLOAT) _WindowHeight, 0.01f, 100.0f));
+    //camera
+    camera.push_back(new Camera(XMFLOAT3(0.0f, 0.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), (float)_WindowHeight, (float)_WindowWidth, 0.01f, 1000.0f, 0.0f));
+    camera.push_back(new Camera(XMFLOAT3(0.0f, 0.0f, -3.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), (float)_WindowHeight, (float)_WindowWidth, 0.01f, 1000.0f, 180.0f));
 
     //Initialise Mesh Data
-    carMeshData = OBJLoader::Load("objects/car.obj", _pd3dDevice);
+    _meshData.push_back(OBJLoader::Load("objects/donut.obj", _pd3dDevice));
 
-    //Initialise Objects
-    car = new GameObject(&carMeshData, _pImmediateContext, _pConstantBuffer, &cb);
+	// Initialize the world matrixs
+	XMStoreFloat4x4(&_world, XMMatrixIdentity());
+	XMStoreFloat4x4(&_world2, XMMatrixIdentity());
 
 	return S_OK;
 }
@@ -105,7 +98,9 @@ HRESULT Application::InitShadersAndInputLayout()
 {
 	HRESULT hr;
 
-    // Compile the vertex shader
+    ///////////////////////////////
+    // Compile the vertex shader //
+    ///////////////////////////////
     ID3DBlob* pVSBlob = nullptr;
     hr = CompileShaderFromFile(L"DX11 Framework.fx", "VS", "vs_4_0", &pVSBlob);
 
@@ -116,7 +111,9 @@ HRESULT Application::InitShadersAndInputLayout()
         return hr;
     }
     
-	// Create the vertex shader
+    //////////////////////////////
+	// Create the vertex shader //
+    //////////////////////////////
 	hr = _pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &_pVertexShader);
 
 	if (FAILED(hr))
@@ -125,7 +122,9 @@ HRESULT Application::InitShadersAndInputLayout()
         return hr;
 	}
 
-	// Compile the pixel shader
+    //////////////////////////////
+	// Compile the pixel shader //
+    //////////////////////////////
 	ID3DBlob* pPSBlob = nullptr;
     hr = CompileShaderFromFile(L"DX11 Framework.fx", "PS", "ps_4_0", &pPSBlob);
 
@@ -136,10 +135,30 @@ HRESULT Application::InitShadersAndInputLayout()
         return hr;
     }
 
-	// Create the pixel shader
-	hr = _pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &_pPixelShader);
+    /////////////////////////
+    // Create pixel shader //
+    /////////////////////////
+    hr = _pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &_pPixelShader);
 
-	pPSBlob->Release();
+    pPSBlob->Release();
+
+    ///////////////////////////////////////////
+	// Compile the pixel shader (No Texture) //
+    //////////////////////////////////////////
+    ID3DBlob* pPSNOTEXBlob = nullptr;
+    hr = CompileShaderFromFile(L"DX11 Framework.fx", "PSNOTEX", "ps_4_0", &pPSNOTEXBlob);
+
+    if (FAILED(hr))
+    {
+        MessageBox(nullptr,
+            L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+        return hr;
+    }
+
+    // Create the pixel shader
+    hr = _pd3dDevice->CreatePixelShader(pPSNOTEXBlob->GetBufferPointer(), pPSNOTEXBlob->GetBufferSize(), nullptr, &_pNoTexPixelShader);
+
+    pPSNOTEXBlob->Release();
 
     if (FAILED(hr))
         return hr;
@@ -565,6 +584,11 @@ HRESULT Application::InitDevice()
     srdesc.FrontCounterClockwise = true; //remove when cube no longer needed
     hr = _pd3dDevice->CreateRasterizerState(&srdesc, &_solidRaster);
 
+    D3D11_RASTERIZER_DESC _noCullingdesc;
+    ZeroMemory(&_noCullingdesc, sizeof(D3D11_RASTERIZER_DESC));
+    _noCullingdesc.FillMode = D3D11_FILL_SOLID;
+    _noCullingdesc.CullMode = D3D11_CULL_NONE;
+    hr = _pd3dDevice->CreateRasterizerState(&_noCullingdesc, &_noCulling);
 
     if (FAILED(hr))
         return hr;
@@ -611,10 +635,8 @@ void Application::Update()
         t = (dwTimeCur - dwTimeStart) / 1000.0f;
     }
 
-    if (GetAsyncKeyState(VK_F1))
-    {
-        rasterizerState = !rasterizerState;
-    }
+    Input();
+
     //
     // Pass time through to shaders
     //
@@ -623,11 +645,48 @@ void Application::Update()
     //
     // Animate the cube
     //
-	XMStoreFloat4x4(&_world, XMMatrixTranslation(0.0f, 0.0f, 150.0f));
+	XMStoreFloat4x4(&_world, XMMatrixScaling(40.0f, 40.0f, 40.0f) * XMMatrixRotationY(t * 0.5f) * XMMatrixTranslation(0.0f, 0.0f, 190.0f));
 
     //spin
-    XMStoreFloat4x4(&_world2, XMMatrixRotationY(t * 0.5f) * XMMatrixTranslation(0.0f, 0.0f, 1.0f));
-    car->Update(t);
+    XMStoreFloat4x4(&_world2, XMMatrixRotationY(t * 0.5f) * XMMatrixTranslation(0.0f, 0.0f, 5.0f));
+
+    //cam
+    camera[selectedCamera]->Update(t);
+}
+
+void Application::Input()
+{
+    if (GetAsyncKeyState(VK_F1))
+    {
+        rasterizerState = !rasterizerState;
+    }
+
+    //camera switch
+    if (GetAsyncKeyState(0x31)) //1
+    {
+        selectedCamera = 0;
+    }
+    if (GetAsyncKeyState(0x32)) //2
+    {
+        selectedCamera = 1;
+    }
+
+    if (GetAsyncKeyState(0x57)) //W
+    {
+        
+    }
+    if (GetAsyncKeyState(0x53)) //S
+    {
+        
+    }
+    if (GetAsyncKeyState(0x41)) //A
+    {
+
+    }
+    if (GetAsyncKeyState(0x44)) //D
+    {
+
+    }
 }
 
 void Application::Draw()
@@ -640,8 +699,8 @@ void Application::Draw()
     _pImmediateContext->ClearDepthStencilView(_depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	XMMATRIX world = XMLoadFloat4x4(&_world);
-	XMMATRIX view = XMLoadFloat4x4(&_view);
-	XMMATRIX projection = XMLoadFloat4x4(&_projection);
+	XMMATRIX view = XMLoadFloat4x4(&camera[selectedCamera]->GetViewMx());
+	XMMATRIX projection = XMLoadFloat4x4(&camera[selectedCamera]->GetProjectionMx());
 
     if (rasterizerState)
     {
@@ -673,7 +732,7 @@ void Application::Draw()
     cb.SpecularPower = SpecularPower;
 
     //camera
-    cb.EyePosW = XMFLOAT3(0.0f, 0.0f, -3.0f);
+    cb.EyePosW = XMFLOAT3(camera[selectedCamera]->GetPosition().x , camera[selectedCamera]->GetPosition().y, camera[selectedCamera]->GetPosition().z);
 
 	_pImmediateContext->UpdateSubresource(_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
@@ -687,7 +746,6 @@ void Application::Draw()
 	_pImmediateContext->PSSetShader(_pPixelShader, nullptr, 0);
 
     //Renders a cube
-
     world = XMLoadFloat4x4(&_world2);
     cb.mWorld = XMMatrixTranspose(world);
 
@@ -700,35 +758,21 @@ void Application::Draw()
 	_pImmediateContext->DrawIndexed(36, 0, 0); 
 
     //draw car
-    /*world = XMLoadFloat4x4(&_world);
+    _pImmediateContext->RSSetState(_noCulling);
+    _pImmediateContext->PSSetShader(_pNoTexPixelShader, nullptr, 0);
+
+    world = XMLoadFloat4x4(&_world);
     cb.mWorld = XMMatrixTranspose(world);
 
     _pImmediateContext->UpdateSubresource(_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
-    _pImmediateContext->IASetVertexBuffers(0, 1, &objMeshData.VertexBuffer, &objMeshData.VBStride, &objMeshData.VBOffset);
-    _pImmediateContext->IASetIndexBuffer(objMeshData.IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+    _pImmediateContext->IASetVertexBuffers(0, 1, &_meshData[0].VertexBuffer, &_meshData[0].VBStride, &_meshData[0].VBOffset);
+    _pImmediateContext->IASetIndexBuffer(_meshData[0].IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
-    _pImmediateContext->DrawIndexed(objMeshData.IndexCount, 0, 0);*/
-    car->Draw();
+    _pImmediateContext->DrawIndexed(_meshData[0].IndexCount, 0, 0);
 
     //
     // Present our back buffer to our front buffer
     //
     _pSwapChain->Present(0, 0);
 }
-
-//HRESULT Application::CalculateNormals(int triCount, SimpleVertex vertexBuffer[], WORD indexBuffer[])
-//{
-//    int vertexNumber = 0;
-//
-//    for (int i = 0; i < triCount; i++)
-//    {
-//        XMVECTOR v1 = XMLoadFloat3(&XMFLOAT3(vertexBuffer[indexBuffer[vertexNumber]].Pos.x, vertexBuffer[indexBuffer[vertexNumber]].Pos.y, vertexBuffer[indexBuffer[vertexNumber]].Pos.z));
-//        XMVECTOR v2 = XMLoadFloat3(&XMFLOAT3(vertexBuffer[indexBuffer[vertexNumber + 1]].Pos.x, vertexBuffer[indexBuffer[vertexNumber + 1]].Pos.y, vertexBuffer[indexBuffer[vertexNumber + 1]].Pos.z));
-//        XMVECTOR v3 = XMLoadFloat3(&XMFLOAT3(vertexBuffer[indexBuffer[vertexNumber + 2]].Pos.x, vertexBuffer[indexBuffer[vertexNumber + 2]].Pos.y, vertexBuffer[indexBuffer[vertexNumber + 2]].Pos.z));
-//        XMVECTOR n = XMVector3Cross(XMVectorSubtract(v2, v1), XMVectorSubtract(v3, v1));
-//        vertexNumber += 3;
-//    }
-//
-//    return S_OK;
-//}

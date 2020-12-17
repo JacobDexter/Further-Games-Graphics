@@ -119,3 +119,30 @@ float4 PS(VS_OUTPUT input) : SV_Target
     return textureColour * finalColor;
     //return float4(input.Normal, 0.0f) * textureColour * finalColor; //check normals (change func to float3)
 }
+
+//--------------------------------------------------------------------------------------
+// Pixel Shader (No Texture)
+//--------------------------------------------------------------------------------------
+float4 PSNOTEX(VS_OUTPUT input) : SV_Target
+{
+    //compute reflection vector
+    float r = reflect(-LightVecW, input.Normal);
+
+    //calculate ambient light colour
+    float3 ambient = AmbientMtrl * AmbientLight;
+
+    //calculate specular light colour
+    float specularAmount = pow(max(dot(r, input.Eye), 0), SpecularPower); //how much light hits the camera eye
+    float3 specular = specularAmount * (SpecularMtrl * SpecularLight).rgb;
+
+    //diffuse calculate diffuse light colour
+    float diffuseAmount = max(dot(LightVecW, input.Normal), 0.0f);
+    float3 diffuse = diffuseAmount * (DiffuseMtrl * DiffuseLight).rgb;
+
+    //calculate final pixel colour
+    float4 finalColor;
+    finalColor.rgb = clamp(diffuse, 0, 1) + ambient + clamp(specular, 0, 1); //clamps make sure values stay between 0 and 1
+    finalColor.a = DiffuseMtrl.a;
+
+    return finalColor;
+}
